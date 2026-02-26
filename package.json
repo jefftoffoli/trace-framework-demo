@@ -1,0 +1,22 @@
+{
+  "name": "trace-framework-demo",
+  "version": "1.0.0",
+  "description": "TRACE Framework companion repo — testing AI agents for production confidence",
+  "private": true,
+  "scripts": {
+    "test": "jest --testPathPattern='(01-trust-boundaries|04-context-engineering|05-enforcement)'",
+    "test:offline": "jest --testPathPattern='(01-trust-boundaries|04-context-engineering|05-enforcement)'",
+    "test:replay": "jest --testPathPattern='02-runtime-observability'",
+    "test:evals": "jest --testPathPattern='03-adaptive-evals'",
+    "test:all": "jest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.3"
+  }
+}
