@@ -16,9 +16,9 @@ npm run test:all  # All tests (requires ANTHROPIC_API_KEY)
 
 | Command | What it runs | API key? | Cost |
 |---------|-------------|----------|------|
-| `npm test` | Trust boundaries, context engineering, enforcement | No | Free |
+| `npm test` | Trust boundaries, context contrast, enforcement | No | Free |
 | `npm run test:replay` | Trace replay (fixtures → live model) | Yes | ~$0.01 |
-| `npm run test:evals` | Property assertions + LLM-as-judge | Yes | ~$0.02 |
+| `npm run test:evals` | Property assertions + LLM judge + context comparison | Yes | ~$0.02 |
 | `npm run test:all` | Everything | Yes | ~$0.03 |
 
 ## Structure
@@ -28,7 +28,7 @@ tests/
   01-trust-boundaries/       → T: Tool handler tests (highest ROI)
   02-runtime-observability/  → R: Trace replay with property assertions
   03-adaptive-evals/         → A: Property assertions + LLM-as-judge
-  04-context-engineering/    → C: Mock-chain vs contract test contrast
+  04-context-engineering/    → C: Context comparison (Demo 3) + mock vs contract contrast
   05-enforcement/            → E: TCPA quiet hours, business hours
 
 src/

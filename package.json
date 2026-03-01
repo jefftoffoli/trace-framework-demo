@@ -4,10 +4,10 @@
   "description": "TRACE Framework companion repo — testing AI agents for production confidence",
   "private": true,
   "scripts": {
-    "test": "jest --testPathPattern='(01-trust-boundaries|04-context-engineering|05-enforcement)'",
-    "test:offline": "jest --testPathPattern='(01-trust-boundaries|04-context-engineering|05-enforcement)'",
+    "test": "jest --testPathPattern='(01-trust-boundaries|04-context-engineering/contrast|05-enforcement)'",
+    "test:offline": "jest --testPathPattern='(01-trust-boundaries|04-context-engineering/contrast|05-enforcement)'",
     "test:replay": "jest --testPathPattern='02-runtime-observability'",
-    "test:evals": "jest --testPathPattern='03-adaptive-evals'",
+    "test:evals": "jest --testPathPattern='(03-adaptive-evals|04-context-engineering/context-comparison)'",
     "test:all": "jest"
   },
   "dependencies": {

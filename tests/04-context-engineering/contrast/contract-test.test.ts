@@ -12,7 +12,7 @@
  * In production, this test survived every refactor. The mock-chain version
  * broke 16 times in 7 weeks.
  *
- * Demo 3 in the masterclass shows this side-by-side with mock-chain.test.ts.
+ * Explore this alongside mock-chain.test.ts to see the contrast.
  *
  * OFFLINE — no API key needed. Uses the tool handlers directly.
  */
