@@ -48,6 +48,7 @@ Tests requiring API keys use conditional skipping: `const describeWithApi = hasA
 
 ## Key Patterns
 
+- Tests answer "is the agent good at helping customers?" — does escalation reach the owner with actionable detail? does the follow-up reference the actual conversation? does the message arrive at the right time?
 - Enforcement rules (compliance, scheduling) are pure functions with injectable `now` parameter for testability — never model decisions
 - Tests assert on **properties** of agent output (escalated?, word count, topic relevance), never exact content
 - `tests/04-context-engineering/contrast/` contains a deliberate anti-pattern (mock-chain) alongside the preferred approach (contract-test) for teaching purposes

@@ -4,9 +4,10 @@
  * TRACE Layer: T — Trust Boundaries
  * "What the agent does alone vs. what needs human approval"
  *
- * Tool handler tests are durable because tools are the stable interface —
- * they survived every rewrite of the production system.
- * Test outcomes ("did escalate record the right information?"), not wiring.
+ * These verify what matters to customers: that escalations record actionable
+ * detail (so the owner knows about the burst pipe, not just "customer needs help"),
+ * that follow-ups capture the right context (the walk habit, not a generic check-in),
+ * and that messages actually get sent.
  *
  * These tests run OFFLINE — no API key needed.
  */

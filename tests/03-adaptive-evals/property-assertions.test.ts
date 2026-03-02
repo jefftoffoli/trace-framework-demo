@@ -4,9 +4,10 @@
  * TRACE Layer: A — Adaptive Evals
  * "Continuous evaluation, not deployment gates"
  *
- * Property assertions check structural properties of agent output —
- * not exact content. These survive model upgrades, prompt changes,
- * and architectural rewrites.
+ * These protect specific service quality properties: customers don't get
+ * double-texted, emergencies get escalated, routine messages don't trigger
+ * false alarms, and SMS responses stay brief enough to actually read.
+ * They check structural properties of agent output, not exact content.
  *
  * REQUIRES: ANTHROPIC_API_KEY (run with `npm run test:evals`)
  *

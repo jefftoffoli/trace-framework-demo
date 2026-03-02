@@ -4,10 +4,11 @@
  * TRACE Layer: R — Runtime Observability
  * "Every decision logged, traced, and queryable"
  *
- * Trace-based replay: record real production interactions as fixtures,
- * then replay them as test cases. The model gets the same context and tools,
- * but makes a fresh decision. We assert on properties of the output —
- * not exact content.
+ * These check that real customer scenarios produce acceptable outcomes:
+ * the emergency gets escalated with actionable detail, the follow-up
+ * references the actual conversation, the terse opener gets a helpful
+ * response. Each fixture is an anonymized production interaction replayed
+ * against the current model — same context and tools, fresh decision.
  *
  * REQUIRES: ANTHROPIC_API_KEY (run with `npm run test:replay`)
  *

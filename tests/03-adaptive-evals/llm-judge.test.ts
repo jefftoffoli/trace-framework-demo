@@ -4,9 +4,12 @@
  * TRACE Layer: A — Adaptive Evals
  * "Continuous evaluation, not deployment gates"
  *
- * LLM-as-judge: a model evaluates outputs against defined criteria.
- * Binary pass/fail (not Likert scales). Uses Haiku for speed and cost
- * (~$0.003 per eval).
+ * Some service quality properties can't be checked with regex or word counts:
+ * Is the follow-up personalized to Marissa's walk habit, or generic? Does the
+ * tone feel like a supportive coach, or a clinical assessment? Does the
+ * escalation message give the owner enough detail to act? An LLM judge
+ * evaluates these against defined criteria — binary pass/fail, not Likert
+ * scales. Uses Haiku for speed and cost (~$0.003 per eval).
  *
  * REQUIRES: ANTHROPIC_API_KEY (run with `npm run test:evals`)
  *
