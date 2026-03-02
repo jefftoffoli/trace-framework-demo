@@ -7,9 +7,9 @@
  * This test demonstrates the FRAGILE approach: mocking internal modules
  * to test a feature. It passes — but it's coupled to implementation details.
  *
- * In the production codebase, a file like this was modified 16 times in
- * 7 weeks. Every time the internals changed — renamed a function, moved
- * a module, changed a return type — this test broke.
+ * In the production codebase, one mock-heavy test file was modified 18
+ * times in 5 weeks. Another had 16 tests silently failing because the
+ * mocks assumed a query chain order that didn't match production code.
  *
  * Demo 3 in the masterclass shows this side-by-side with contract-test.test.ts.
  *

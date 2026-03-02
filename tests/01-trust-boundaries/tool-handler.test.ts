@@ -4,9 +4,9 @@
  * TRACE Layer: T — Trust Boundaries
  * "What the agent does alone vs. what needs human approval"
  *
- * Tool handler tests have the highest durability and ROI in any agent system.
- * Tools are the stable interface — they survived every rewrite of the production
- * system. Test outcomes ("did escalate record the right information?"), not wiring.
+ * Tool handler tests are durable because tools are the stable interface —
+ * they survived every rewrite of the production system.
+ * Test outcomes ("did escalate record the right information?"), not wiring.
  *
  * These tests run OFFLINE — no API key needed.
  */
