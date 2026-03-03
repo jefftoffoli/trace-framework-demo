@@ -1,7 +1,7 @@
 /**
  * TRACE Framework Demo — Core Types
  *
- * Simplified from the production Quallaa agent system.
+ * Simplified from a production agent system.
  * In production these types bridge domain models (SMS, clients, contacts)
  * with the Claude Agent SDK. Here they're standalone for teaching.
  */

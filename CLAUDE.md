@@ -28,6 +28,7 @@ Copy `.env.example` to `.env` and add `ANTHROPIC_API_KEY` for API-dependent test
 - **src/agent/executor.ts** — Agent executor: single-turn tool loop (max 5 turns) using Anthropic SDK. Entry point for trace replay.
 - **src/agent/tools.ts** — 4 tools (escalate, schedule_followup, check_schedule, send_sms) with in-memory ToolLog for test assertions. Registry pattern via `Map<string, ToolDefinition>`.
 - **src/agent/types.ts** — Core types: AgentResponse, TraceFixture, ToolDefinition, ToolCall, ToolLogEntry, ContactInfo, Message.
+- **src/observability/sentinel.ts** — Lightweight anomaly detection: timeout spikes, response repetition, context bloat. Pure functions, no DB, no API.
 - **src/compliance/quiet-hours.ts** — TCPA quiet hours enforcement (9pm-8am local time). Pure deterministic functions.
 - **src/scheduling/business-hours.ts** — Business hours scheduling (7am-7pm, no Sunday before noon). Pure deterministic functions.
 - **fixtures/** — Anonymized production traces as JSON (emergency-escalation, scheduled-followup, terse-opener) used for replay testing.
@@ -39,7 +40,7 @@ Tests are organized by TRACE layer in numbered directories:
 | Directory | TRACE Layer | API Key? | What It Tests |
 |-----------|-------------|----------|---------------|
 | `tests/01-trust-boundaries/` | Trust Boundaries | No | Tool handler input/output contracts |
-| `tests/02-runtime-observability/` | Runtime Observability | Yes | Trace replay with property assertions |
+| `tests/02-runtime-observability/` | Runtime Observability | Mixed | Trace replay (API) + sentinel anomaly detection (offline) |
 | `tests/03-adaptive-evals/` | Adaptive Evals | Yes | Property assertions + LLM-as-judge |
 | `tests/04-context-engineering/` | Context Engineering | Mixed | Context comparison (API) + mock vs contract contrast (offline) |
 | `tests/05-enforcement/` | Enforcement | No | TCPA quiet hours, business hours scheduling |
