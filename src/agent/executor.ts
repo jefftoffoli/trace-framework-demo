@@ -19,6 +19,23 @@ import { getToolRegistry, clearToolLog, getToolLog } from './tools'
 
 let client: Anthropic | null = null
 
+/** Retry on transient API errors (overloaded, rate limit) */
+async function callWithRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: unknown) {
+      const status = err instanceof Anthropic.APIError ? err.status : 0
+      if (attempt < retries && (status === 529 || status === 429)) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('Unreachable')
+}
+
 function getClient(): Anthropic {
   if (!client) {
     client = new Anthropic()
@@ -60,13 +77,15 @@ export async function replayTrace(fixture: TraceFixture): Promise<AgentResponse>
   let finalContent = ''
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const response = await anthropic.messages.create({
-      model: fixture.agent.model === 'haiku' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      system: fixture.systemPrompt,
-      messages,
-      tools: tools.length > 0 ? tools : undefined,
-    })
+    const response = await callWithRetry(() =>
+      anthropic.messages.create({
+        model: fixture.agent.model === 'haiku' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system: fixture.systemPrompt,
+        messages,
+        tools: tools.length > 0 ? tools : undefined,
+      })
+    )
 
     // Collect text and tool use blocks
     const textBlocks = response.content.filter(

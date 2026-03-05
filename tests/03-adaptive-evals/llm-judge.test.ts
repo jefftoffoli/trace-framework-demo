@@ -30,6 +30,23 @@ function loadFixture(name: string): TraceFixture {
 const hasApiKey = !!process.env.ANTHROPIC_API_KEY
 const describeWithApi = hasApiKey ? describe : describe.skip
 
+/** Retry on transient API errors (overloaded, rate limit) */
+async function callWithRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: unknown) {
+      const status = err instanceof Anthropic.APIError ? err.status : 0
+      if (attempt < retries && (status === 529 || status === 429)) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('Unreachable')
+}
+
 // =============================================================================
 // Judge Harness
 // =============================================================================
@@ -56,11 +73,13 @@ Agent response: "${agentResponse}"
 Respond with ONLY a JSON object (no markdown fences):
 {"pass": true or false, "reasoning": "1-2 sentence explanation"}`
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 256,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const response = await callWithRetry(() =>
+    client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    })
+  )
 
   const text = response.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')

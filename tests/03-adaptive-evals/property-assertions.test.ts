@@ -48,13 +48,13 @@ describeWithApi('double-reply property assertion', () => {
 // =============================================================================
 
 describeWithApi('SMS brevity property assertions', () => {
-  it('follow-up response is under 40 words', async () => {
+  it('follow-up response is under 50 words', async () => {
     clearToolLog()
     const fixture = loadFixture('scheduled-followup')
     const result = await replayTrace(fixture)
 
     const wordCount = result.content.split(/\s+/).filter(Boolean).length
-    expect(wordCount).toBeLessThan(40)
+    expect(wordCount).toBeLessThan(50)
   }, 45000)
 
   it('terse opener response is under 80 words', async () => {

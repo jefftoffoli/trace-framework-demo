@@ -8,7 +8,8 @@
     "test:offline": "jest --testPathPattern='(01-trust-boundaries|02-runtime-observability/sentinel|04-context-engineering/contrast|05-enforcement)'",
     "typecheck": "tsc --noEmit",
     "test:replay": "jest --testPathPattern='02-runtime-observability'",
-    "test:evals": "jest --testPathPattern='(03-adaptive-evals|04-context-engineering/context-comparison)'",
+    "test:evals": "jest --testPathPattern='03-adaptive-evals'",
+    "test:context": "jest --testPathPattern='04-context-engineering/context-comparison'",
     "test:all": "jest"
   },
   "dependencies": {

@@ -14,6 +14,7 @@ npm test                 # Run offline tests (no API key needed)
 npm run test:offline     # Same as npm test
 npm run test:replay      # Trace replay tests (requires ANTHROPIC_API_KEY, ~$0.01)
 npm run test:evals       # Property assertions + LLM judge (requires ANTHROPIC_API_KEY, ~$0.02)
+npm run test:context     # Context engineering comparison (requires ANTHROPIC_API_KEY, ~$0.01)
 npm run test:all         # Run all tests (requires ANTHROPIC_API_KEY, ~$0.03)
 ```
 

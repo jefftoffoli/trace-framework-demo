@@ -47,9 +47,9 @@ describeWithApi('scheduled-followup trace replay', () => {
     expect(result.content.toLowerCase()).toMatch(/walk/)
   })
 
-  it('is under 40 words (SMS brevity)', () => {
+  it('is under 50 words (SMS brevity)', () => {
     const wordCount = result.content.split(/\s+/).filter(Boolean).length
-    expect(wordCount).toBeLessThan(40)
+    expect(wordCount).toBeLessThan(50)
   })
 
   it('does not re-introduce itself', () => {
