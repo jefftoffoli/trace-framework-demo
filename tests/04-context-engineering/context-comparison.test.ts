@@ -1,230 +1,202 @@
 /**
- * 04 — Context Engineering: Context Comparison
+ * 04 — Context Engineering: New vs Returning Prospect
  *
  * TRACE Layer: C — Context Engineering
- * "What the model sees at each decision point"
+ * "The model wasn't wrong — it was uninformed."
  *
- * The C insight: most "model errors" are context errors. The model makes
- * reasonable decisions given what it can see — the fix is better context
- * assembly, not better prompts or hard-coded rules.
+ * Same agent. Same base system prompt. Different injected context.
+ * The new prospect gets [NEW PROSPECT] — no history, no name.
+ * The returning prospect gets [RETURNING PROSPECT. Name: Mike, Business: Johnson HVAC]
+ * plus conversation history about pricing.
  *
- * Same model, same tools, same conversation. Only the system prompt differs:
- * the "before" has no temporal data, the "after" includes timestamps.
- * The model can't reason about timing if timing isn't in the context.
+ * The test asserts the behavioral difference. Context in → behavior out.
  *
  * Demo 3 in the masterclass.
  *
  * REQUIRES: ANTHROPIC_API_KEY
  */
 
-import { replayTrace, getToolLog, clearToolLog } from '../../src/agent/executor'
+import Anthropic from '@anthropic-ai/sdk'
+import { replayTrace, clearToolLog } from '../../src/agent/executor'
 import type { TraceFixture, AgentResponse } from '../../src/agent/types'
+import * as fs from 'fs'
+import * as path from 'path'
+
+function loadFixture(name: string): TraceFixture {
+  const filePath = path.join(__dirname, '../../fixtures', `${name}.json`)
+  return JSON.parse(fs.readFileSync(filePath, 'utf-8'))
+}
 
 const hasApiKey = !!process.env.ANTHROPIC_API_KEY
 const describeWithApi = hasApiKey ? describe : describe.skip
 
 // =============================================================================
-// Shared scenario: customer asked about water heater repair, went quiet
+// Judge Harness (same pattern as llm-judge.test.ts)
 // =============================================================================
 
-const conversationHistory = [
-  {
-    role: 'assistant' as const,
-    content:
-      "Hi! This is the AI assistant for Denver Pro Plumbing. We noticed you tried calling — how can we help?",
-  },
-  {
-    role: 'user' as const,
-    content: "Yeah I need someone to look at my water heater. It's making a weird noise",
-  },
-  {
-    role: 'assistant' as const,
-    content:
-      'We can definitely help with that. Are you available this week for someone to take a look?',
-  },
-  // Customer goes quiet here
-]
+type JudgeResult = {
+  pass: boolean
+  reasoning: string
+}
 
-const tools = [
-  {
-    name: 'schedule_followup',
-    description:
-      'Schedule a follow-up message. The message param is a context hint ' +
-      '(not sent literally). Pass scheduled_for as local time or delay_hours ' +
-      'as hours from now. Minimum reasonable follow-up delay is 2 hours for ' +
-      'active conversations, 24 hours for cold outreach.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        message: { type: 'string', description: 'Context hint for follow-up composition' },
-        scheduled_for: { type: 'string', description: 'When to fire, in local timezone' },
-        delay_hours: { type: 'number', description: 'Hours from now to fire' },
-      },
-      required: ['message'],
-    },
-  },
-  {
-    name: 'send_sms',
-    description: 'Send an SMS message to the contact right now.',
-    input_schema: {
-      type: 'object' as const,
-      properties: {
-        message: { type: 'string', description: 'The SMS message to send' },
-      },
-      required: ['message'],
-    },
-  },
-]
+/** Retry on transient API errors (overloaded, rate limit) */
+async function callWithRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: unknown) {
+      const status = err instanceof Anthropic.APIError ? err.status : 0
+      if (attempt < retries && (status === 529 || status === 429)) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)))
+        continue
+      }
+      throw err
+    }
+  }
+  throw new Error('Unreachable')
+}
 
-const basePrompt = `You are an AI assistant for Denver Pro Plumbing, a plumbing company in Denver, CO.
+async function judgeResponse(
+  criteria: string,
+  agentResponse: string,
+  context?: string,
+): Promise<JudgeResult> {
+  const client = new Anthropic()
 
-## Communication Style
-- Keep messages SHORT — this is texting. 1-3 sentences max.
-- Be helpful and professional.
+  const prompt = `You are an AI quality judge. Evaluate whether the following agent response meets the given criteria.
 
-## Follow-Up Rules
-- If a customer goes quiet, you may schedule a follow-up.
-- Don't be pushy or aggressive. Give people time to respond.
-- Use schedule_followup to check in later — don't send an immediate message if they just went quiet.`
+${context ? `Context: ${context}\n` : ''}
+Criteria: ${criteria}
 
-const userMessage = [
-  '[CUSTOMER WENT QUIET]',
-  'The customer has not responded to your last message.',
-  'Decide whether to follow up and when.',
-  '',
-  'If following up later, use schedule_followup with an appropriate delay.',
-  'If the customer just went quiet moments ago, waiting is usually better than following up immediately.',
-].join('\n')
+Agent response: "${agentResponse}"
+
+Respond with ONLY a JSON object (no markdown fences):
+{"pass": true or false, "reasoning": "1-2 sentence explanation"}`
+
+  const response = await callWithRetry(() =>
+    client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    })
+  )
+
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('')
+
+  try {
+    const cleaned = text.replace(/^```(?:json)?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
+    return JSON.parse(cleaned) as JudgeResult
+  } catch {
+    return { pass: false, reasoning: `Failed to parse judge response: ${text}` }
+  }
+}
 
 // =============================================================================
-// Demo 3: Context comparison — before and after temporal data
+// Demo 3: Context engineering — same agent, different context, different behavior
 // =============================================================================
 
-describeWithApi('context comparison — the C insight', () => {
+describeWithApi('context engineering — the C layer', () => {
+
   /**
-   * WITHOUT temporal context: the model has no idea how long ago the
-   * customer's last message was. It has to guess when to follow up.
-   *
-   * Teaching point: "The model has a schedule_followup tool. It knows the
-   * customer went quiet. But it has no temporal data. It can't reason about
-   * HOW LONG they've been quiet."
+   * NEW PROSPECT: "hey" with no contact history.
+   * Context: [NEW PROSPECT — first time texting this number]
+   * Expected: introduces itself, explains the product.
    */
-  describe('WITHOUT temporal context (the bug)', () => {
+  describe('new prospect — no contact context', () => {
     let result: AgentResponse
 
     beforeAll(async () => {
       clearToolLog()
-
-      const fixture: TraceFixture = {
-        id: 'context-comparison-before',
-        description:
-          'Customer went quiet. No temporal data — model cannot reason about timing.',
-        agent: { id: 'plumber-assistant', model: 'haiku' },
-        systemPrompt:
-          basePrompt +
-          '\n\nCurrent time: Thursday, 02/27/2026, 2:07 PM (America/Denver)',
-        conversationHistory,
-        userMessage,
-        tools,
-      }
-
+      const fixture = loadFixture('terse-opener')
       result = await replayTrace(fixture)
     }, 45000)
 
-    it('takes some action (follow-up or message)', () => {
-      const log = getToolLog()
-      const hasAction = log.some(
-        (e) => e.name === 'schedule_followup' || e.name === 'send_sms'
-      )
-      // Model should do something — but whatever it does is an uninformed guess
-      expect(hasAction).toBe(true)
+    it('introduces itself or explains the product', () => {
+      const content = result.content.toLowerCase()
+      const introducesOrExplains =
+        /relay/i.test(content) ||
+        /welcome/i.test(content) ||
+        /help/i.test(content) ||
+        /business/i.test(content) ||
+        /how can/i.test(content)
+      expect(introducesOrExplains).toBe(true)
     })
 
-    it('cannot reference timing (because it has none)', () => {
-      // The model's response should NOT mention "7 minutes" — it doesn't know
-      expect(result.content).not.toMatch(/7 minutes/)
+    it('does not reference any prior conversation', () => {
+      const content = result.content.toLowerCase()
+      expect(content).not.toMatch(/last time/i)
+      expect(content).not.toMatch(/we (spoke|talked|discussed|chatted)/i)
+      expect(content).not.toMatch(/following up/i)
     })
+
+    it('treats the person as a stranger', async () => {
+      const judgment = await judgeResponse(
+        'The response treats the recipient as someone the agent has never spoken to before. It introduces itself or the product, and does NOT assume any prior relationship or knowledge of who they are.',
+        result.content,
+        'A new prospect texted "hey" with no prior conversation history. The agent has no name, no business, no context about this person.',
+      )
+
+      console.log('Judge result (new prospect):', JSON.stringify(judgment, null, 2))
+      expect(judgment.pass).toBe(true)
+    }, 30000)
   })
 
   /**
-   * WITH temporal context: the system prompt now includes when the customer
-   * last messaged. The model can reason: "It's only been 7 minutes — that's
-   * not going quiet, that's a normal pause."
-   *
-   * Teaching point: "Same model, same tools, different context, different
-   * outcome. The model wasn't wrong before — it was uninformed."
+   * RETURNING PROSPECT: Mike from Johnson HVAC, back after a pricing conversation.
+   * Context: [RETURNING PROSPECT. Name: Mike, Business: Johnson HVAC] + history
+   * Expected: picks up where they left off, answers the trial question.
    */
-  describe('WITH temporal context (the fix)', () => {
+  describe('returning prospect — with contact context', () => {
     let result: AgentResponse
 
     beforeAll(async () => {
       clearToolLog()
-
-      const fixture: TraceFixture = {
-        id: 'context-comparison-after',
-        description:
-          'Customer went quiet. Temporal context enriched — model can reason about recency.',
-        agent: { id: 'plumber-assistant', model: 'haiku' },
-        systemPrompt:
-          basePrompt +
-          '\n\nCurrent time: Thursday, 02/27/2026, 2:07 PM (America/Denver)' +
-          '\n\n--- CONVERSATION TIMING ---' +
-          '\nLast customer message: 7 minutes ago (2:00 PM)' +
-          '\nConversation started: 12 minutes ago (1:55 PM)' +
-          '\nThis is an active, recent conversation — the customer may still be typing or stepped away briefly.',
-        conversationHistory,
-        userMessage,
-        tools,
-      }
-
+      const fixture = loadFixture('returning-prospect')
       result = await replayTrace(fixture)
     }, 45000)
 
-    it('does NOT send an immediate SMS (7 minutes is too soon)', () => {
-      const log = getToolLog()
-      const sms = log.find((e) => e.name === 'send_sms')
-      // With temporal context, model recognizes 7 minutes is not "going quiet"
-      expect(sms).toBeUndefined()
+    it('does not re-ask what business they run', () => {
+      const content = result.content.toLowerCase()
+      expect(content).not.toMatch(/what('s| is) your (business|company)/i)
+      expect(content).not.toMatch(/what (do you|does your).*(do|run|operate)/i)
+      expect(content).not.toMatch(/tell me about your (business|company)/i)
     })
 
-    it('schedules a follow-up with a reasonable delay (hours, not minutes)', () => {
-      const log = getToolLog()
-      const followup = log.find((e) => e.name === 'schedule_followup')
-
-      expect(followup).toBeDefined()
-
-      // The delay should be at least an hour from now, not minutes
-      if (followup?.params.delay_hours) {
-        expect(Number(followup.params.delay_hours)).toBeGreaterThanOrEqual(1)
-      }
-      if (followup?.params.scheduled_for) {
-        // If using absolute time, should NOT be in the next 30 minutes (2:07-2:37 PM)
-        const time = String(followup.params.scheduled_for)
-        expect(time).not.toMatch(/14:[0-3]\d/)
-      }
+    it('references pricing or trial', () => {
+      const content = result.content.toLowerCase()
+      const referencesPriorTopic =
+        /trial/i.test(content) ||
+        /pric/i.test(content) ||
+        /free/i.test(content) ||
+        /sign.?up/i.test(content)
+      expect(referencesPriorTopic).toBe(true)
     })
+
+    it('treats the person as someone it already knows', async () => {
+      const judgment = await judgeResponse(
+        'The response treats the recipient as a returning contact the agent has spoken to before. It does NOT re-introduce itself, does NOT re-explain what the product is, and picks up naturally from a prior conversation about pricing.',
+        result.content,
+        'Mike from Johnson HVAC asked about pricing 3 days ago. He is back asking "How does the trial work?" The agent has his name, business, and full conversation history.',
+      )
+
+      console.log('Judge result (returning prospect):', JSON.stringify(judgment, null, 2))
+      expect(judgment.pass).toBe(true)
+    }, 30000)
   })
 })
 
 /**
  * TEACHING NOTE:
  *
- * Same model. Same tools. Same conversation history. Same user message.
- * The ONLY difference is what the system prompt contains.
+ * Same agent, same model, same tools. The only variable is the context:
  *
- * "Before" — the model schedules a follow-up but has no basis for timing.
- *   It's guessing. Sometimes it guesses well, sometimes it doesn't.
- *   This is the 7-minute follow-up bug from Section 1.
+ *   New prospect:       [NEW PROSPECT — first time texting this number]
+ *   Returning prospect: [RETURNING PROSPECT. Name: Mike, Business: Johnson HVAC]
+ *                       + conversation history about pricing
  *
- * "After" — the model sees "last message: 7 minutes ago" and recognizes
- *   this is too soon to follow up. It schedules hours out, not minutes.
- *   Not because we added a rule — because we added data.
- *
- * This is the C insight: most "model errors" in production are actually
- * context errors. The fix isn't a better prompt or a hard-coded minimum
- * delay. It's better context assembly.
- *
- * The companion repo also has tests/04-context-engineering/contrast/ with
- * a mock-chain vs. contract test comparison — a different C lesson about
- * what to test when the harness is thin.
+ * The behavioral difference is entirely driven by what the model sees.
+ * The model wasn't wrong — it was uninformed. Context in → behavior out.
  */
